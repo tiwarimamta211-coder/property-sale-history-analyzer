@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Property Sale History Analyzer | IncomeAIHub</title>
+<meta name="description" content="Track property sale history, compare multiple properties, and analyze ROI with India-focused real estate analytics tool.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<!-- ============ ADSENSE PLACEHOLDER (HEAD) ============ -->
+<!--
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+-->
+
+<style>
+:root{
+  --bg-primary:#070910;
+  --bg-secondary:#0d1119;
+  --bg-card:#10141f;
+  --bg-card-hover:#141a2a;
+  --border-color:#1f2a3d;
+  --cyan:#00f0ff;
+  --cyan-dim:#00b8c8;
+  --purple:#b14eff;
+  --purple-dim:#8a3dd1;
+  --green:#39ff8a;
+  --green-dim:#2bcf6c;
+  --amber:#ffb84d;
+  --red:#ff4d6d;
+  --text-primary:#e8f2ff;
+  --text-secondary:#8b9bb8;
+  --text-dim:#566180;
+  --font-display:'Orbitron',sans-serif;
+  --font-body:'Rajdhani',sans-serif;
+  --font-mono:'Share Tech Mono',monospace;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+  background:var(--bg-primary);
+  color:var(--text-primary);
+  font-family:var(--font-body);
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+
+/* Scanline overlay */
+body::before{
+  content:"";
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  background:repeating-linear-gradient(
+    0deg,
+    rgba(0,240,255,0.015) 0px,
+    rgba(0,240,255,0.015) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events:none;
+  z-index:9999;
+}
+
+body::after{
+  content:"";
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  background:radial-gradient(circle at 20% 10%, rgba(177,78,255,0.06), transparent 40%),
+              radial-gradient(circle at 80% 90%, rgba(0,240,255,0.06), transparent 40%);
+  pointer-events:none;
+  z-index:0;
+}
+
+.container{
+  max-width:1400px;
+  margin:0 auto;
+  padding:20px;
+  position:relative;
+  z-index:1;
+}
+
+/* ===== HEADER ===== */
+header{
+  text-align:center;
+  padding:30px 20px 25px;
+  margin-bottom:25px;
+  border-bottom:1px solid var(--border-color);
+  position:relative;
+}
+
+.logo-title{
+  font-family:var(--font-display);
+  font-size:clamp(22px,4vw,38px);
+  font-weight:900;
+  letter-spacing:2px;
+  background:linear-gradient(90deg,var(--cyan),var(--purple));
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  text-shadow:0 0 30px rgba(0,240,255,0.3);
+  margin-bottom:8px;
+}
+
+.subtitle{
+  font-size:14px;
+  color:var(--text-secondary);
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+
+.brand-tag{
+  position:absolute;
+  top:10px;
+  right:10px;
+  font-family:var(--font-mono);
+  font-size:11px;
+  color:var(--text-dim);
+  border:1px solid var(--border-color);
+  padding:4px 10px;
+  border-radius:20px;
+}
+
+/* ===== TABS ===== */
+.tabs{
+  display:flex;
+  gap:8px;
+  margin-bottom:25px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+.tab-btn{
+  font-family:var(--font-display);
+  font-size:12px;
+  letter-spacing:1px;
+  background:var(--bg-card);
+  border:1px solid var(--border-color);
+  color:var(--text-secondary);
+  padding:12px 20px;
+  border-radius:8px;
+  cursor:pointer;
+  transition:all 0.25s ease;
+  text-transform:uppercase;
+}
+
+.tab-btn:hover{
+  border-color:var(--cyan-dim);
+  color:var(--text-primary);
+}
+
+.tab-btn.active{
+  background:linear-gradient(135deg, rgba(0,240,255,0.15), rgba(177,78,255,0.15));
+  border-color:var(--cyan);
+  color:var(--cyan);
+  box-shadow:0 0 20px rgba(0,240,255,0.2);
+}
+
+.tab-content{display:none;}
+.tab-content.active{display:block; animation:fadeIn 0.3s ease;}
+
+@keyframes fadeIn{
+  from{opacity:0; transform:translateY(8px);}
+  to{opacity:1; transform:translateY(0);}
+}
+
+/* ===== CARDS ===== */
+.card{
+  background:var(--bg-card);
+  border:1px solid var(--border-color);
+  border-radius:14px;
+  padding:24px;
+  margin-bottom:20px;
+  position:relative;
+}
+
+.card-title{
+  font-family:var(--font-display);
+  font-size:15px;
+  letter-spacing:1.5px;
+  color:var(--cyan);
+  margin-bottom:18px;
+  text-transform:uppercase;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.card-title::before{
+  content:"";
+  width:8px;
+  height:8px;
+  background:var(--cyan);
+  border-radius:50%;
+  box-shadow:0 0 8px var(--cyan);
+}
+
+/* ===== GRID LAYOUTS ===== */
+.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+.grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;}
+.grid-4{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
+
+@media (max-width:900px){
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr 1fr;}
+}
+@media (max-width:600px){
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}
+}
+
+/* ===== FORM ELEMENTS ===== */
+.form-group{margin-bottom:16px;}
+
+label{
+  display:block;
+  font-size:13px;
+  color:var(--text-secondary);
+  margin-bottom:6px;
+  letter-spacing:0.5px;
+  text-transform:uppercase;
+  font-weight:600;
+}
+
+input, select{
+  width:100%;
+  background:var(--bg-secondary);
+  border:1px solid var(--border-color);
+  color:var(--text-primary);
+  padding:11px 14px;
+  border-radius:8px;
+  font-family:var(--font-body);
+  font-size:15px;
+  font-weight:500;
+  transition:border-color 0.2s;
+}
+
+input:focus, select:focus{
+  outline:none;
+  border-color:var(--cyan);
+  box-shadow:0 0 0 3px rgba(0,240,255,0.1);
+}
+
+input[type="file"]{
+  padding:9px;
+  cursor:pointer;
+}
+
+::placeholder{color:var(--text-dim);}
+
+/* ===== BUTTONS ===== */
+.btn{
+  font-family:var(--font-display);
+  font-size:13px;
+  letter-spacing:1px;
+  padding:13px 24px;
+  border-radius:8px;
+  border:none;
+  cursor:pointer;
+  transition:all 0.25s ease;
+  text-transform:uppercase;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  justify-content:center;
+}
+
+.btn-primary{
+  background:linear-gradient(135deg,var(--cyan),var(--cyan-dim));
+  color:#04161a;
+  box-shadow:0 0 20px rgba(0,240,255,0.25);
+}
+.btn-primary:hover{transform:translateY(-2px); box-shadow:0 4px 25px rgba(0,240,255,0.4);}
+
+.btn-secondary{
+  background:transparent;
+  border:1px solid var(--purple);
+  color:var(--purple);
+}
+.btn-secondary:hover{background:rgba(177,78,255,0.1); transform:translateY(-2px);}
+
+.btn-danger{
+  background:transparent;
+  border:1px solid var(--red);
+  color:var(--red);
+  padding:8px 14px;
+  font-size:11px;
+}
+.btn-danger:hover{background:rgba(255,77,109,0.1);}
+
+.btn-block{width:100%;}
+
+.btn-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;}
+
+/* ===== STAT CARDS ===== */
+.stat-card{
+  background:var(--bg-secondary);
+  border:1px solid var(--border-color);
+  border-radius:12px;
+  padding:18px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+
+.stat-card::before{
+  content:"";
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,var(--cyan),var(--purple));
+}
+
+.stat-label{
+  font-size:11px;
+  color:var(--text-secondary);
+  text-transform:uppercase;
+  letter-spacing:1px;
+  margin-bottom:8px;
+}
+
+.stat-value{
+  font-family:var(--font-mono);
+  font-size:24px;
+  font-weight:700;
+  color:var(--text-primary);
+}
+
+.stat-value.positive{color:var(--green);}
+.stat-value.negative{color:var(--red);}
+.stat-value.cyan{color:var(--cyan);}
+.stat-value.purple{color:var(--purple);}
+
+.stat-sub{
+  font-size:12px;
+  color:var(--text-dim);
+  margin-top:4px;
+}
+
+/* ===== TABLE ===== */
+.table-wrap{
+  overflow-x:auto;
+  border-radius:10px;
+  border:1px solid var(--border-color);
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+  min-width:700px;
+}
+
+thead{
+  background:var(--bg-secondary);
+}
+
+th{
+  text-align:left;
+  padding:12px 14px;
+  font-family:var(--font-display);
+  font-size:11px;
+  letter-spacing:1px;
+  color:var(--cyan);
+  text-transform:uppercase;
+  border-bottom:2px solid var(--border-color);
+  white-space:nowrap;
+}
+
+td{
+  padding:12px 14px;
+  border-bottom:1px solid var(--border-color);
+  color:var(--text-primary);
+  white-space:nowrap;
+}
+
+tbody tr{transition:background 0.2s;}
+tbody tr:hover{background:var(--bg-card-hover);}
+tbody tr:last-child td{border-bottom:none;}
+
+.tag{
+  display:inline-block;
+  padding:3px 10px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:600;
+  font-family:var(--font-mono);
+}
+.tag.profit{background:rgba(57,255,138,0.12); color:var(--green); border:1px solid var(--green-dim);}
+.tag.loss{background:rgba(255,77,109,0.12); color:var(--red); border:1px solid var(--red);}
+
+/* ===== CHART CONTAINERS ===== */
+.chart-box{
+  position:relative;
+  height:340px;
+  width:100%;
+}
+
+@media (max-width:600px){
+  .chart-box{height:280px;}
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state{
+  text-align:center;
+  padding:50px 20px;
+  color:var(--text-dim);
+}
+
+.empty-state-icon{
+  font-size:48px;
+  margin-bottom:14px;
+  opacity:0.5;
+}
+
+/* ===== PROPERTY SELECTOR CHIPS ===== */
+.chip-list{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:16px;
+}
+
+.chip{
+  padding:7px 14px;
+  border-radius:20px;
+  border:1px solid var(--border-color);
+  background:var(--bg-secondary);
+  color:var(--text-secondary);
+  font-size:13px;
+  cursor:pointer;
+  transition:all 0.2s;
+  font-weight:600;
+}
+
+.chip.active{
+  border-color:var(--purple);
+  color:var(--purple);
+  background:rgba(177,78,255,0.1);
+}
+
+/* ===== HINDI GUIDE ===== */
+.hindi-guide{
+  background:var(--bg-secondary);
+  border:1px solid var(--border-color);
+  border-left:3px solid var(--green);
+  border-radius:10px;
+  padding:18px 20px;
+  margin-top:10px;
+  font-size:14px;
+  line-height:1.7;
+  color:var(--text-secondary);
+}
+
+.hindi-guide strong{color:var(--green);}
+.hindi-guide ol, .hindi-guide ul{margin:10px 0 10px 20px;}
+.hindi-guide li{margin-bottom:6px;}
+
+/* ===== TOGGLE / SWITCH ===== */
+.input-toggle{
+  display:flex;
+  gap:8px;
+  margin-bottom:18px;
+  background:var(--bg-secondary);
+  padding:5px;
+  border-radius:10px;
+  width:fit-content;
+}
+
+.input-toggle button{
+  background:transparent;
+  border:none;
+  color:var(--text-secondary);
+  padding:9px 18px;
+  border-radius:7px;
+  cursor:pointer;
+  font-family:var(--font-body);
+  font-weight:600;
+  font-size:13px;
+  transition:all 0.2s;
+}
+
+.input-toggle button.active{
+  background:linear-gradient(135deg,var(--cyan),var(--purple));
+  color:#04161a;
+}
+
+.hidden{display:none !important;}
+
+/* ===== FOOTER ===== */
+footer{
+  text-align:center;
+  padding:30px 20px;
+  color:var(--text-dim);
+  font-size:12px;
+  border-top:1px solid var(--border-color);
+  margin-top:30px;
+}
+
+/* ===== ADSENSE PLACEHOLDER STYLING ===== */
+.ad-slot{
+  background:var(--bg-card);
+  border:1px dashed var(--border-color);
+  border-radius:10px;
+  text-align:center;
+  padding:14px;
+  color:var(--text-dim);
+  font-size:12px;
+  margin:20px 0;
+  letter-spacing:1px;
+}
+
+/* ===== CSV DROP ZONE ===== */
+.drop-zone{
+  border:2px dashed var(--border-color);
+  border-radius:12px;
+  padding:30px 20px;
+  text-align:center;
+  cursor:pointer;
+  transition:all 0.25s;
+  background:var(--bg-secondary);
+}
+
+.drop-zone:hover, .drop-zone.dragover{
+  border-color:var(--cyan);
+  background:rgba(0,240,255,0.04);
+}
+
+.drop-zone-icon{font-size:32px; margin-bottom:10px;}
+.drop-zone-text{color:var(--text-secondary); font-size:14px;}
+.drop-zone-sub{color:var(--text-dim); font-size:12px; margin-top:6px;}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{height:8px; width:8px;}
+::-webkit-scrollbar-track{background:var(--bg-secondary);}
+::-webkit-scrollbar-thumb{background:var(--border-color); border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:var(--cyan-dim);}
+
+/* ===== TOAST ===== */
+.toast{
+  position:fixed;
+  bottom:24px;
+  right:24px;
+  background:var(--bg-card);
+  border:1px solid var(--green-dim);
+  color:var(--green);
+  padding:14px 22px;
+  border-radius:10px;
+  font-weight:600;
+  font-size:14px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.5);
+  z-index:10000;
+  transform:translateY(100px);
+  opacity:0;
+  transition:all 0.35s ease;
+}
+.toast.show{transform:translateY(0); opacity:1;}
+.toast.error{border-color:var(--red); color:var(--red);}
+
+/* ===== RESPONSIVE TYPE ===== */
+@media (max-width:600px){
+  .card{padding:16px;}
+  .btn{width:100%;}
+  th,td{font-size:12px; padding:10px 8px;}
+}
+
+.section-divider{
+  height:1px;
+  background:linear-gradient(90deg, transparent, var(--border-color), transparent);
+  margin:25px 0;
+}
+
+.flex-between{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:16px;
+}
+
+.small-text{font-size:12px; color:var(--text-dim);}
+
+.filter-bar{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:18px;
+  align-items:flex-end;
+}
+
+.filter-bar .form-group{margin-bottom:0; flex:1; min-width:140px;}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <span class="brand-tag">INCOMEAIHUB</span>
+    <div class="logo-title">PROPERTY SALE HISTORY ANALYZER</div>
+    <div class="subtitle">Track • Compare • Analyze Real Estate Investments</div>
+  </header>
+
+  <!-- ADSENSE TOP -->
+  <div class="ad-slot">AD SLOT — 728x90 / Responsive Banner (Top)</div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="add">➕ Add Property</button>
+    <button class="tab-btn" data-tab="history">📋 Sale History</button>
+    <button class="tab-btn" data-tab="compare">⚖️ Compare</button>
+    <button class="tab-btn" data-tab="roi">📈 ROI Dashboard</button>
+    <button class="tab-btn" data-tab="guide">🇮🇳 हिंदी गाइड</button>
+  </div>
+
+  <!-- ================= TAB: ADD PROPERTY ================= -->
+  <div class="tab-content active" id="tab-add">
+
+    <div class="card">
+      <div class="flex-between">
+        <div class="card-title">Data Input Mode</div>
+      </div>
+      <div class="input-toggle">
+        <button class="active" data-mode="manual">✍️ Manual Entry</button>
+        <button data-mode="csv">📂 CSV Upload</button>
+      </div>
+
+      <!-- MANUAL FORM -->
+      <div id="manual-mode">
+        <div class="grid-3">
+          <div class="form-group">
+            <label>Property Name / ID</label>
+            <input type="text" id="p-name" placeholder="e.g. Sunrise Apartments 2BHK">
+          </div>
+          <div class="form-group">
+            <label>City / Locality</label>
+            <input type="text" id="p-location" placeholder="e.g. Noida Sector 62">
+          </div>
+          <div class="form-group">
+            <label>Property Type</label>
+            <select id="p-type">
+              <option value="Apartment">Apartment / Flat</option>
+              <option value="Villa">Villa / House</option>
+              <option value="Plot">Plot / Land</option>
+              <option value="Commercial">Commercial</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-4">
+          <div class="form-group">
+            <label>Purchase Date</label>
+            <input type="date" id="p-buy-date">
+          </div>
+          <div class="form-group">
+            <label>Purchase Price (₹)</label>
+            <input type="number" id="p-buy-price" placeholder="e.g. 4500000">
+          </div>
+          <div class="form-group">
+            <label>Sale Date (optional)</label>
+            <input type="date" id="p-sell-date">
+          </div>
+          <div class="form-group">
+            <label>Sale Price (₹) (optional)</label>
+            <input type="number" id="p-sell-price" placeholder="e.g. 6200000">
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="form-group">
+            <label>Area (sq.ft)</label>
+            <input type="number" id="p-area" placeholder="e.g. 1200">
+          </div>
+          <div class="form-group">
+            <label>Additional Costs (₹) — registration, brokerage etc.</label>
+            <input type="number" id="p-extra-cost" placeholder="e.g. 250000">
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <input type="text" id="p-notes" placeholder="optional remarks">
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="addProperty()">➕ ADD PROPERTY</button>
+          <button class="btn btn-secondary" onclick="loadSampleData()">🎲 LOAD SAMPLE DATA</button>
+        </div>
+      </div>
+
+      <!-- CSV UPLOAD -->
+      <div id="csv-mode" class="hidden">
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('csvFile').click()">
+          <div class="drop-zone-icon">📂</div>
+          <div class="drop-zone-text">Click or drag CSV file here</div>
+          <div class="drop-zone-sub">Columns: name, location, type, buyDate, buyPrice, sellDate, sellPrice, area, extraCost, notes</div>
+        </div>
+        <input type="file" id="csvFile" accept=".csv" class="hidden">
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="downloadCSVTemplate()">⬇️ DOWNLOAD CSV TEMPLATE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADSENSE MID -->
+    <div class="ad-slot">AD SLOT — 300x250 / In-content Rectangle</div>
+
+  </div>
+
+  <!-- ================= TAB: SALE HISTORY ================= -->
+  <div class="tab-content" id="tab-history">
+
+    <div class="card">
+      <div class="flex-between">
+        <div class="card-title">Portfolio Overview</div>
+        <span class="small-text" id="recordCount">0 properties tracked</span>
+      </div>
+      <div class="grid-4" id="overviewStats">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Filter Records</div>
+      <div class="filter-bar">
+        <div class="form-group">
+          <label>Search</label>
+          <input type="text" id="searchInput" placeholder="Search by name or location" oninput="renderHistoryTable()">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="filterStatus" onchange="renderHistoryTable()">
+            <option value="all">All</option>
+            <option value="sold">Sold Only</option>
+            <option value="holding">Currently Holding</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sort By</label>
+          <select id="sortBy" onchange="renderHistoryTable()">
+            <option value="dateDesc">Newest First</option>
+            <option value="dateAsc">Oldest First</option>
+            <option value="roiDesc">Highest ROI</option>
+            <option value="roiAsc">Lowest ROI</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="historyTable">
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>Location</th>
+              <th>Type</th>
+              <th>Buy Date</th>
+              <th>Buy Price</th>
+              <th>Sell Date</th>
+              <th>Sell Price</th>
+              <th>Profit/Loss</th>
+              <th>ROI %</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody"></tbody>
+        </table>
+      </div>
+      <div id="historyEmpty" class="empty-state hidden">
+        <div class="empty-state-icon">🏠</div>
+        <div>Koi property record nahi mila. "Add Property" tab se data add karein.</div>
+      </div>
+
+      <div class="btn-row" style="margin-top:18px;">
+        <button class="btn btn-secondary" onclick="exportCSV()">⬇️ EXPORT CSV</button>
+        <button class="btn btn-danger" onclick="clearAllData()">🗑️ CLEAR ALL DATA</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================= TAB: COMPARE ================= -->
+  <div class="tab-content" id="tab-compare">
+
+    <div class="card">
+      <div class="card-title">Select Properties to Compare (max 6)</div>
+      <div class="chip-list" id="compareChips"></div>
+      <div id="compareEmpty" class="empty-state hidden">
+        <div class="empty-state-icon">⚖️</div>
+        <div>Compare karne ke liye properties select karein.</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Purchase vs Sale Price</div>
+        <div class="chart-box"><canvas id="comparePriceChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">ROI % Comparison</div>
+        <div class="chart-box"><canvas id="compareROIChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Price per Sq.Ft Comparison</div>
+      <div class="chart-box"><canvas id="comparePSFChart"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- ================= TAB: ROI DASHBOARD ================= -->
+  <div class="tab-content" id="tab-roi">
+
+    <div class="card">
+      <div class="card-title">Investment Summary</div>
+      <div class="grid-4" id="roiStats"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Portfolio Value Timeline</div>
+        <div class="chart-box"><canvas id="timelineChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Profit vs Loss Distribution</div>
+        <div class="chart-box"><canvas id="profitLossChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Annualized Returns by Property</div>
+      <div class="chart-box"><canvas id="annualizedChart"></canvas></div>
+    </div>
+
+    <!-- ADSENSE BOTTOM -->
+    <div class="ad-slot">AD SLOT — 728x90 / Responsive Banner (Bottom)</div>
+
+  </div>
+
+  <!-- ================= TAB: HINDI GUIDE ================= -->
+  <div class="tab-content" id="tab-guide">
+    <div class="card">
+      <div class="card-title">🇮🇳 उपयोग गाइड (Usage Guide in Hindi)</div>
+      <div class="hindi-guide">
+        <p><strong>Property Sale History Analyzer</strong> ek complete tool hai jisse aap apni real estate properties ki खरीद-बिक्री history track kar sakte hain, multiple properties compare kar sakte hain, aur ROI (Return on Investment) ka detailed analysis paa sakte hain.</p>
+
+        <p style="margin-top:14px;"><strong>1️⃣ Property Add Karna:</strong></p>
+        <ol>
+          <li><strong>Manual Entry:</strong> "Add Property" tab mein property ka naam, location, type, purchase date/price aur (agar bik gayi hai) sale date/price bharein.</li>
+          <li><strong>Additional Costs</strong> mein registration, stamp duty, brokerage jaisi extra lagat dalein — isse accurate profit calculate hoga.</li>
+          <li>Agar property abhi bhi aapke paas hai (becha nahi), to Sale Date/Price khali rakh sakte hain — tool use "Currently Holding" mark karega.</li>
+          <li><strong>CSV Upload:</strong> Bulk data ke liye "CSV Upload" mode select karein, template download karein, Excel mein bharein aur upload kar dein.</li>
+        </ol>
+
+        <p style="margin-top:14px;"><strong>2️⃣ Sale History Dekhna:</strong></p>
+        <ul>
+          <li>"Sale History" tab mein saari properties ki table dikhegi — buy/sell price, profit/loss, aur ROI % ke saath.</li>
+          <li>Search box se kisi specific property ya location ko dhoondh sakte hain.</li>
+          <li>Filter se "Sold Only" ya "Currently Holding" properties dekh sakte hain.</li>
+          <li>Sort dropdown se newest, oldest, ya highest/lowest ROI ke hisaab se arrange karein.</li>
+        </ul>
+
+        <p style="margin-top:14px;"><strong>3️⃣ Properties Compare Karna:</strong></p>
+        <ul>
+          <li>"Compare" tab mein chips par click karke 6 tak properties select karein.</li>
+          <li>Purchase vs Sale price, ROI %, aur Price per Sq.Ft ke charts automatically ban jayenge.</li>
+        </ul>
+
+        <p style="margin-top:14px;"><strong>4️⃣ ROI Dashboard:</strong></p>
+        <ul>
+          <li>Total investment, total returns, overall profit/loss aur average ROI ek nazar mein dikhega.</li>
+          <li>Portfolio Value Timeline se pata chalega ki samay ke saath aapka investment kaise grow hua.</li>
+          <li>Annualized Returns chart se pata chalega ki kaun si property ne sabse acha CAGR diya.</li>
+        </ul>
+
+        <p style="margin-top:14px;"><strong>5️⃣ Data Export & Safety:</strong></p>
+        <ul>
+          <li>"Export CSV" button se apna pura data CSV file mein download kar sakte hain — backup ke liye useful.</li>
+          <li>Ye tool 100% client-side hai — koi bhi data server par nahi jata, sab kuch sirf aapke browser mein (local storage) save hota hai.</li>
+          <li>Browser cache/history clear karne se data delete ho sakta hai — important data CSV export karke रखें।</li>
+        </ul>
+
+        <p style="margin-top:14px; color:var(--amber);"><strong>⚠️ Note:</strong> Yeh tool sirf calculation aur tracking ke liye hai, investment advice nahi deta. Koi bhi bada financial decision lene se pehle apne CA ya financial advisor se salah lein.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  IncomeAIHub © 2026 — Property Sale History Analyzer | All data stored locally in your browser | Not financial advice
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   PROPERTY SALE HISTORY ANALYZER — IncomeAIHub
+   100% Client-side. Data stored in localStorage.
+========================================================= */
+
+let properties = [];
+let selectedCompareIds = [];
+let charts = {};
+
+const STORAGE_KEY = 'incomeaihub_property_history';
+
+/* ---------- INIT ---------- */
+window.addEventListener('DOMContentLoaded', () => {
+  loadFromStorage();
+  setupTabs();
+  setupInputToggle();
+  setupCSVUpload();
+  renderAll();
+});
+
+/* ---------- STORAGE ---------- */
+function saveToStorage(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(properties));
+  }catch(e){
+    console.error('Storage save failed', e);
+  }
+}
+
+function loadFromStorage(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) properties = JSON.parse(raw);
+  }catch(e){
+    properties = [];
+  }
+}
+
+/* ---------- TABS ---------- */
+function setupTabs(){
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      renderAll();
+    });
+  });
+}
+
+/* ---------- INPUT MODE TOGGLE ---------- */
+function setupInputToggle(){
+  document.querySelectorAll('.input-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.input-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const mode = btn.dataset.mode;
+      document.getElementById('manual-mode').classList.toggle('hidden', mode !== 'manual');
+      document.getElementById('csv-mode').classList.toggle('hidden', mode !== 'csv');
+    });
+  });
+}
+
+/* ---------- ADD PROPERTY (MANUAL) ---------- */
+function addProperty(){
+  const name = document.getElementById('p-name').value.trim();
+  const location = document.getElementById('p-location').value.trim();
+  const type = document.getElementById('p-type').value;
+  const buyDate = document.getElementById('p-buy-date').value;
+  const buyPrice = parseFloat(document.getElementById('p-buy-price').value);
+  const sellDate = document.getElementById('p-sell-date').value;
+  const sellPrice = parseFloat(document.getElementById('p-sell-price').value);
+  const area = parseFloat(document.getElementById('p-area').value) || 0;
+  const extraCost = parseFloat(document.getElementById('p-extra-cost').value) || 0;
+  const notes = document.getElementById('p-notes').value.trim();
+
+  if(!name || !buyDate || isNaN(buyPrice) || buyPrice <= 0){
+    showToast('Property name, buy date aur buy price zaroori hai', true);
+    return;
+  }
+
+  if(sellDate && buyDate && new Date(sellDate) < new Date(buyDate)){
+    showToast('Sale date, buy date se pehle nahi ho sakti', true);
+    return;
+  }
+
+  const prop = {
+    id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    name, location, type,
+    buyDate, buyPrice,
+    sellDate: sellDate || null,
+    sellPrice: !isNaN(sellPrice) ? sellPrice : null,
+    area, extraCost, notes
+  };
+
+  properties.push(prop);
+  saveToStorage();
+  clearForm();
+  showToast('Property successfully add ho gayi! ✅');
+  renderAll();
+}
+
+function clearForm(){
+  ['p-name','p-location','p-buy-date','p-buy-price','p-sell-date','p-sell-price','p-area','p-extra-cost','p-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('p-type').value = 'Apartment';
+}
+
+/* ---------- SAMPLE DATA ---------- */
+function loadSampleData(){
+  const sample = [
+    {id:'s1', name:'Sunrise Apartments 2BHK', location:'Noida Sector 62', type:'Apartment', buyDate:'2019-04-15', buyPrice:4500000, sellDate:'2023-06-10', sellPrice:6800000, area:1200, extraCost:280000, notes:'Resale flat'},
+    {id:'s2', name:'Green Valley Plot', location:'Lucknow Gomti Nagar', type:'Plot', buyDate:'2017-01-20', buyPrice:1800000, sellDate:'2024-02-05', sellPrice:4200000, area:2000, extraCost:90000, notes:''},
+    {id:'s3', name:'Heritage Villa', location:'Jaipur Vaishali Nagar', type:'Villa', buyDate:'2020-09-12', buyPrice:8500000, sellDate:null, sellPrice:null, area:2800, extraCost:450000, notes:'Currently rented out'},
+    {id:'s4', name:'Tech Park Office Unit', location:'Pune Hinjewadi', type:'Commercial', buyDate:'2021-03-01', buyPrice:6200000, sellDate:'2022-11-15', sellPrice:5800000, area:850, extraCost:200000, notes:'Sold at slight loss due to market dip'},
+    {id:'s5', name:'Riverside Residency 3BHK', location:'Ahmedabad SG Highway', type:'Apartment', buyDate:'2022-06-18', buyPrice:5400000, sellDate:null, sellPrice:null, area:1550, extraCost:310000, notes:''}
+  ];
+  sample.forEach(s => { s.id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); properties.push(s); });
+  saveToStorage();
+  showToast('Sample data load ho gaya! 🎲');
+  renderAll();
+}
+
+/* ---------- CSV UPLOAD ---------- */
+function setupCSVUpload(){
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('csvFile');
+
+  fileInput.addEventListener('change', e => {
+    if(e.target.files.length) handleCSVFile(e.target.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if(e.dataTransfer.files.length) handleCSVFile(e.dataTransfer.files[0]);
+  });
+}
+
+function handleCSVFile(file){
+  if(!file.name.toLowerCase().endsWith('.csv')){
+    showToast('Sirf CSV file upload karein', true);
+    return;
+  }
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results){
+      let added = 0;
+      results.data.forEach(row => {
+        const name = (row.name || '').trim();
+        const buyPrice = parseFloat(row.buyPrice);
+        if(!name || isNaN(buyPrice)) return;
+        properties.push({
+          id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+          name,
+          location: (row.location || '').trim(),
+          type: (row.type || 'Other').trim(),
+          buyDate: row.buyDate || '',
+          buyPrice,
+          sellDate: row.sellDate || null,
+          sellPrice: row.sellPrice ? parseFloat(row.sellPrice) : null,
+          area: parseFloat(row.area) || 0,
+          extraCost: parseFloat(row.extraCost) || 0,
+          notes: (row.notes || '').trim()
+        });
+        added++;
+      });
+      if(added > 0){
+        saveToStorage();
+        showToast(`${added} properties CSV se import ho gayi! ✅`);
+        renderAll();
+      } else {
+        showToast('CSV mein valid data nahi mila. Template check karein.', true);
+      }
+    },
+    error: function(){
+      showToast('CSV file parse karne mein error aaya', true);
+    }
+  });
+}
+
+function downloadCSVTemplate(){
+  const headers = ['name','location','type','buyDate','buyPrice','sellDate','sellPrice','area','extraCost','notes'];
+  const sampleRow = ['Sunrise Apartments 2BHK','Noida Sector 62','Apartment','2019-04-15','4500000','2023-06-10','6800000','1200','280000','Resale flat'];
+  const csv = headers.join(',') + '\n' + sampleRow.join(',');
+  downloadFile(csv, 'property_template.csv', 'text/csv');
+}
+
+/* ---------- CALCULATIONS ---------- */
+function calcMetrics(p){
+  const totalInvested = p.buyPrice + (p.extraCost || 0);
+  const isSold = !!(p.sellDate && p.sellPrice);
+  const currentValue = isSold ? p.sellPrice : null;
+  const profitLoss = isSold ? (p.sellPrice - totalInvested) : null;
+  const roiPercent = isSold ? ((profitLoss / totalInvested) * 100) : null;
+
+  let years = null;
+  if(isSold && p.buyDate && p.sellDate){
+    years = (new Date(p.sellDate) - new Date(p.buyDate)) / (1000*60*60*24*365.25);
+  } else if(p.buyDate){
+    years = (new Date() - new Date(p.buyDate)) / (1000*60*60*24*365.25);
+  }
+
+  let cagr = null;
+  if(isSold && years && years > 0){
+    cagr = (Math.pow(p.sellPrice / totalInvested, 1/years) - 1) * 100;
+  }
+
+  const pricePerSqft = p.area > 0 ? (p.buyPrice / p.area) : null;
+  const sellPricePerSqft = (isSold && p.area > 0) ? (p.sellPrice / p.area) : null;
+
+  return { totalInvested, isSold, currentValue, profitLoss, roiPercent, years, cagr, pricePerSqft, sellPricePerSqft };
+}
+
+function fmtINR(num){
+  if(num === null || num === undefined || isNaN(num)) return '—';
+  return '₹' + Math.round(num).toLocaleString('en-IN');
+}
+
+function fmtPercent(num){
+  if(num === null || num === undefined || isNaN(num)) return '—';
+  return (num >= 0 ? '+' : '') + num.toFixed(2) + '%';
+}
+
+/* ---------- RENDER ALL ---------- */
+function renderAll(){
+  renderOverviewStats();
+  renderHistoryTable();
+  renderCompareChips();
+  renderCompareCharts();
+  renderROIDashboard();
+}
+
+/* ---------- OVERVIEW STATS (History Tab) ---------- */
+function renderOverviewStats(){
+  const container = document.getElementById('overviewStats');
+  document.getElementById('recordCount').textContent = properties.length + ' properties tracked';
+
+  if(properties.length === 0){
+    container.innerHTML = `<div class="stat-card"><div class="stat-label">No Data</div><div class="stat-value">—</div></div>`;
+    return;
+  }
+
+  let totalInvested = 0, totalReturns = 0, soldCount = 0, holdingCount = 0;
+  properties.forEach(p => {
+    const m = calcMetrics(p);
+    totalInvested += m.totalInvested;
+    if(m.isSold){ totalReturns += p.sellPrice; soldCount++; }
+    else holdingCount++;
+  });
+
+  const netPL = totalReturns - properties.filter(p=>calcMetrics(p).isSold).reduce((s,p)=>s+calcMetrics(p).totalInvested,0);
+
+  container.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Total Properties</div>
+      <div class="stat-value cyan">${properties.length}</div>
+      <div class="stat-sub">${soldCount} sold • ${holdingCount} holding</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Invested</div>
+      <div class="stat-value">${fmtINR(totalInvested)}</div>
+      <div class="stat-sub">Across all properties</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Sale Returns</div>
+      <div class="stat-value purple">${fmtINR(totalReturns)}</div>
+      <div class="stat-sub">From ${soldCount} sold properties</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Net P&L (Sold)</div>
+      <div class="stat-value ${netPL >= 0 ? 'positive':'negative'}">${fmtINR(netPL)}</div>
+      <div class="stat-sub">${netPL >= 0 ? 'Overall Profit':'Overall Loss'}</div>
+    </div>
+  `;
+}
+
+/* ---------- HISTORY TABLE ---------- */
+function renderHistoryTable(){
+  const tbody = document.getElementById('historyTableBody');
+  const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const statusFilter = document.getElementById('filterStatus')?.value || 'all';
+  const sortBy = document.getElementById('sortBy')?.value || 'dateDesc';
+
+  let list = properties.map(p => ({...p, metrics: calcMetrics(p)}));
+
+  if(search){
+    list = list.filter(p => p.name.toLowerCase().includes(search) || (p.location||'').toLowerCase().includes(search));
+  }
+  if(statusFilter === 'sold') list = list.filter(p => p.metrics.isSold);
+  if(statusFilter === 'holding') list = list.filter(p => !p.metrics.isSold);
+
+  list.sort((a,b) => {
+    if(sortBy === 'dateDesc') return new Date(b.buyDate) - new Date(a.buyDate);
+    if(sortBy === 'dateAsc') return new Date(a.buyDate) - new Date(b.buyDate);
+    if(sortBy === 'roiDesc') return (b.metrics.roiPercent ?? -9999) - (a.metrics.roiPercent ?? -9999);
+    if(sortBy === 'roiAsc') return (a.metrics.roiPercent ?? 9999) - (b.metrics.roiPercent ?? 9999);
+    return 0;
+  });
+
+  document.getElementById('historyEmpty').classList.toggle('hidden', list.length > 0);
+  document.getElementById('historyTable').classList.toggle('hidden', list.length === 0);
+
+  tbody.innerHTML = list.map(p => {
+    const m = p.metrics;
+    const plTag = m.isSold ? `<span class="tag ${m.profitLoss >= 0 ? 'profit':'loss'}">${fmtINR(m.profitLoss)}</span>` : '—';
+    const roiTag = m.isSold ? `<span class="tag ${m.roiPercent >= 0 ? 'profit':'loss'}">${fmtPercent(m.roiPercent)}</span>` : '—';
+    return `
+      <tr>
+        <td><strong>${escapeHtml(p.name)}</strong></td>
+        <td>${escapeHtml(p.location || '—')}</td>
+        <td>${escapeHtml(p.type || '—')}</td>
+        <td>${formatDate(p.buyDate)}</td>
+        <td>${fmtINR(p.buyPrice)}</td>
+        <td>${p.sellDate ? formatDate(p.sellDate) : '—'}</td>
+        <td>${p.sellPrice ? fmtINR(p.sellPrice) : '—'}</td>
+        <td>${plTag}</td>
+        <td>${roiTag}</td>
+        <td>${m.isSold ? '<span class="tag profit" style="background:rgba(0,240,255,0.1);color:var(--cyan);border-color:var(--cyan-dim);">SOLD</span>' : '<span class="tag" style="background:rgba(255,184,77,0.1);color:var(--amber);border-color:var(--amber);">HOLDING</span>'}</td>
+        <td><button class="btn btn-danger" onclick="deleteProperty('${p.id}')">DELETE</button></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function deleteProperty(id){
+  properties = properties.filter(p => p.id !== id);
+  selectedCompareIds = selectedCompareIds.filter(i => i !== id);
+  saveToStorage();
+  showToast('Property delete ho gayi');
+  renderAll();
+}
+
+function clearAllData(){
+  if(properties.length === 0) return;
+  if(confirm('Kya aap sach mein saara data delete karna chahte hain? Yeh action undo nahi ho sakta.')){
+    properties = [];
+    selectedCompareIds = [];
+    saveToStorage();
+    showToast('Saara data clear ho gaya');
+    renderAll();
+  }
+}
+
+/* ---------- EXPORT ---------- */
+function exportCSV(){
+  if(properties.length === 0){
+    showToast('Export karne ke liye koi data nahi hai', true);
+    return;
+  }
+  const headers = ['name','location','type','buyDate','buyPrice','sellDate','sellPrice','area','extraCost','notes','profitLoss','roiPercent'];
+  const rows = properties.map(p => {
+    const m = calcMetrics(p);
+    return [p.name, p.location, p.type, p.buyDate, p.buyPrice, p.sellDate||'', p.sellPrice||'', p.area, p.extraCost, p.notes||'', m.profitLoss ?? '', m.roiPercent ? m.roiPercent.toFixed(2) : ''];
+  });
+  const csv = [headers.join(','), ...rows.map(r => r.map(escapeCSV).join(','))].join('\n');
+  downloadFile(csv, 'property_sale_history_export.csv', 'text/csv');
+  showToast('CSV export ho gaya! ⬇️');
+}
+
+function escapeCSV(val){
+  const str = String(val ?? '');
+  if(str.includes(',') || str.includes('"') || str.includes('\n')){
+    return '"' + str.replace(/"/g,'""') + '"';
+  }
+  return str;
+}
+
+function downloadFile(content, filename, mime){
+  const blob = new Blob([content], {type: mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- COMPARE TAB ---------- */
+function renderCompareChips(){
+  const container = document.getElementById('compareChips');
+  document.getElementById('compareEmpty').classList.toggle('hidden', properties.length > 0);
+
+  if(properties.length === 0){ container.innerHTML = ''; return; }
+
+  container.innerHTML = properties.map(p => `
+    <div class="chip ${selectedCompareIds.includes(p.id) ? 'active' : ''}" onclick="toggleCompare('${p.id}')">
+      ${escapeHtml(p.name)}
+    </div>
+  `).join('');
+}
+
+function toggleCompare(id){
+  if(selectedCompareIds.includes(id)){
+    selectedCompareIds = selectedCompareIds.filter(i => i !== id);
+  } else {
+    if(selectedCompareIds.length >= 6){
+      showToast('Maximum 6 properties hi compare kar sakte hain', true);
+      return;
+    }
+    selectedCompareIds.push(id);
+  }
+  renderCompareChips();
+  renderCompareCharts();
+}
+
+function renderCompareCharts(){
+  const selected = properties.filter(p => selectedCompareIds.includes(p.id));
+  const labels = selected.map(p => p.name.length > 18 ? p.name.slice(0,18)+'…' : p.name);
+
+  destroyChart('comparePriceChart');
+  destroyChart('compareROIChart');
+  destroyChart('comparePSFChart');
+
+  if(selected.length === 0) return;
+
+  const buyPrices = selected.map(p => p.buyPrice);
+  const sellPrices = selected.map(p => { const m = calcMetrics(p); return m.isSold ? p.sellPrice : 0; });
+
+  charts.comparePriceChart = new Chart(document.getElementById('comparePriceChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Purchase Price', data: buyPrices, backgroundColor:'#00f0ff99', borderColor:'#00f0ff', borderWidth:1 },
+        { label:'Sale Price', data: sellPrices, backgroundColor:'#b14eff99', borderColor:'#b14eff', borderWidth:1 }
+      ]
+    },
+    options: chartOptions('₹')
+  });
+
+  const roiData = selected.map(p => { const m = calcMetrics(p); return m.roiPercent !== null ? +m.roiPercent.toFixed(2) : 0; });
+  charts.compareROIChart = new Chart(document.getElementById('compareROIChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label:'ROI %', data: roiData, backgroundColor: roiData.map(v => v >= 0 ? '#39ff8a99' : '#ff4d6d99'), borderColor: roiData.map(v => v >= 0 ? '#39ff8a' : '#ff4d6d'), borderWidth:1 }]
+    },
+    options: chartOptions('%')
+  });
+
+  const psfBuy = selected.map(p => { const m = calcMetrics(p); return m.pricePerSqft ? +m.pricePerSqft.toFixed(0) : 0; });
+  const psfSell = selected.map(p => { const m = calcMetrics(p); return m.sellPricePerSqft ? +m.sellPricePerSqft.toFixed(0) : 0; });
+  charts.comparePSFChart = new Chart(document.getElementById('comparePSFChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Buy ₹/sqft', data: psfBuy, backgroundColor:'#ffb84d99', borderColor:'#ffb84d', borderWidth:1 },
+        { label:'Sell ₹/sqft', data: psfSell, backgroundColor:'#39ff8a99', borderColor:'#39ff8a', borderWidth:1 }
+      ]
+    },
+    options: chartOptions('₹')
+  });
+}
+
+/* ---------- ROI DASHBOARD ---------- */
+function renderROIDashboard(){
+  const container = document.getElementById('roiStats');
+
+  if(properties.length === 0){
+    container.innerHTML = `<div class="stat-card"><div class="stat-label">No Data</div><div class="stat-value">—</div></div>`;
+    destroyChart('timelineChart'); destroyChart('profitLossChart'); destroyChart('annualizedChart');
+    return;
+  }
+
+  const soldProps = properties.filter(p => calcMetrics(p).isSold);
+  const totalInvested = properties.reduce((s,p) => s + calcMetrics(p).totalInvested, 0);
+  const totalReturns = soldProps.reduce((s,p) => s + p.sellPrice, 0);
+  const totalInvestedSold = soldProps.reduce((s,p) => s + calcMetrics(p).totalInvested, 0);
+  const netPL = totalReturns - totalInvestedSold;
+  const avgROI = soldProps.length > 0 ? soldProps.reduce((s,p) => s + calcMetrics(p).roiPercent, 0) / soldProps.length : 0;
+  const avgCAGR = soldProps.filter(p=>calcMetrics(p).cagr !== null).length > 0
+    ? soldProps.reduce((s,p) => s + (calcMetrics(p).cagr || 0), 0) / soldProps.filter(p=>calcMetrics(p).cagr !== null).length
+    : 0;
+
+  container.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Total Capital Deployed</div>
+      <div class="stat-value">${fmtINR(totalInvested)}</div>
+      <div class="stat-sub">${properties.length} properties</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Realized Returns</div>
+      <div class="stat-value purple">${fmtINR(totalReturns)}</div>
+      <div class="stat-sub">${soldProps.length} properties sold</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Net Profit / Loss</div>
+      <div class="stat-value ${netPL >= 0 ? 'positive':'negative'}">${fmtINR(netPL)}</div>
+      <div class="stat-sub">On sold properties</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg ROI / CAGR</div>
+      <div class="stat-value ${avgROI >= 0 ? 'positive':'negative'}">${fmtPercent(avgROI)}</div>
+      <div class="stat-sub">CAGR: ${fmtPercent(avgCAGR)}</div>
+    </div>
+  `;
+
+  renderTimelineChart();
+  renderProfitLossChart();
+  renderAnnualizedChart();
+}
+
+function renderTimelineChart(){
+  destroyChart('timelineChart');
+  const events = [];
+  properties.forEach(p => {
+    events.push({ date: p.buyDate, amount: -calcMetrics(p).totalInvested, label: p.name + ' (Buy)' });
+    if(p.sellDate && p.sellPrice) events.push({ date: p.sellDate, amount: p.sellPrice, label: p.name + ' (Sell)' });
+  });
+  events.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  let running = 0;
+  const points = events.map(e => { running += e.amount; return { x: e.date, y: running }; });
+
+  charts.timelineChart = new Chart(document.getElementById('timelineChart'), {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'Net Cash Flow Position (₹)',
+        data: points,
+        borderColor: '#00f0ff',
+        backgroundColor: 'rgba(0,240,255,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#00f0ff',
+        pointRadius: 4
+      }]
+    },
+    options: {
+      ...chartOptions('₹'),
+      scales: {
+        x: { type:'time', time:{ unit:'month' }, ticks:{ color:'#8b9bb8' }, grid:{ color:'#1f2a3d' } },
+        y: { ticks:{ color:'#8b9bb8' }, grid:{ color:'#1f2a3d' } }
+      }
+    }
+  });
+}
+
+function renderProfitLossChart(){
+  destroyChart('profitLossChart');
+  const sold = properties.filter(p => calcMetrics(p).isSold);
+  const profitCount = sold.filter(p => calcMetrics(p).profitLoss >= 0).length;
+  const lossCount = sold.filter(p => calcMetrics(p).profitLoss < 0).length;
+  const holdingCount = properties.length - sold.length;
+
+  charts.profitLossChart = new Chart(document.getElementById('profitLossChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Profitable Sales', 'Loss-making Sales', 'Currently Holding'],
+      datasets: [{
+        data: [profitCount, lossCount, holdingCount],
+        backgroundColor: ['#39ff8a', '#ff4d6d', '#ffb84d'],
+        borderColor: '#10141f',
+        borderWidth: 3
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend: { position:'bottom', labels:{ color:'#8b9bb8', font:{family:'Rajdhani'} } } }
+    }
+  });
+}
+
+function renderAnnualizedChart(){
+  destroyChart('annualizedChart');
+  const sold = properties.filter(p => calcMetrics(p).isSold && calcMetrics(p).cagr !== null);
+  const labels = sold.map(p => p.name.length > 16 ? p.name.slice(0,16)+'…' : p.name);
+  const data = sold.map(p => +calcMetrics(p).cagr.toFixed(2));
+
+  charts.annualizedChart = new Chart(document.getElementById('annualizedChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'CAGR (Annualized Return %)',
+        data,
+        backgroundColor: data.map(v => v >= 0 ? '#b14eff99' : '#ff4d6d99'),
+        borderColor: data.map(v => v >= 0 ? '#b14eff' : '#ff4d6d'),
+        borderWidth: 1
+      }]
+    },
+    options: chartOptions('%')
+  });
+}
+
+/* ---------- CHART HELPERS ---------- */
+function chartOptions(suffix){
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels:{ color:'#8b9bb8', font:{family:'Rajdhani'} } },
+      tooltip: {
+        callbacks: {
+          label: function(ctx){
+            const val = ctx.parsed.y ?? ctx.parsed;
+            return ctx.dataset.label + ': ' + (suffix === '₹' ? fmtINR(val) : val + '%');
+          }
+        }
+      }
+    },
+    scales: {
+      x: { ticks:{ color:'#8b9bb8' }, grid:{ color:'#1f2a3d' } },
+      y: { ticks:{ color:'#8b9bb8' }, grid:{ color:'#1f2a3d' } }
+    }
+  };
+}
+
+function destroyChart(id){
+  if(charts[id]){ charts[id].destroy(); delete charts[id]; }
+}
+
+/* ---------- UTILS ---------- */
+function formatDate(dateStr){
+  if(!dateStr) return '—';
+  const d = new Date(dateStr);
+  if(isNaN(d)) return dateStr;
+  return d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function showToast(msg, isError){
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.toggle('error', !!isError);
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+</script>
+
+<!-- Chart.js time adapter for timeline chart -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-moment/1.0.1/chartjs-adapter-moment.min.js"></script>
+
+</body>
+</html>
